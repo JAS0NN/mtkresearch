@@ -2,6 +2,8 @@ import json
 import string
 import random
 import sys
+import ast
+from datetime import datetime
 
 
 def _removeprefix(content, prefix):
@@ -18,20 +20,12 @@ def _removesuffix(content, suffix):
         return content[:-len(suffix)] if content.endswith(suffix) else content
 
 
-class MRPromptV1:
-    def __init__(self, bos_token='<s>', eos_token='</s>'):
-        self.bos_token = bos_token
-        self.eos_token = eos_token
-        self.instruct_tokens = ['[INST]', '[/INST]']
-        self.func_tokens = ['[FUNC]', '[/FUNC]']
-        self.call_tokens = ['[FUNC_CALL]', '[/FUNC_CALL]']
-        self.result_tokens = ['[FUNC_RESULT]', '[/FUNC_RESULT]']
-
-    def _font(self, sys=None, add_bos_token=False):
-        if sys is None or not sys.strip():
-            sys = 'You are a helpful AI assistant built by MediaTek Research. The user you are helping speaks Traditional Chinese and comes from Taiwan.'
-        sys = sys.strip()
-        return f'{self.bos_token}{sys} ' if add_bos_token else f'{sys} '
+class MRPromptBase:
+    def generate_call_id(self):
+        length = 24
+        pool = string.ascii_letters + string.digits
+        key = ''.join(random.choice(pool) for i in range(length))
+        return f'call_{key}'
 
     def _check_arguments(self, arguments, func_description):
         errors = []
@@ -205,8 +199,24 @@ class MRPromptV1:
                             raise ValueError("Default value type mismatch")
 
 
-    def get_prompt(self, conversations, add_bos_token=False):
-        self.check_conversations(conversations)
+class MRPromptV1(MRPromptBase):
+    def __init__(self, bos_token='<s>', eos_token='</s>'):
+        self.bos_token = bos_token
+        self.eos_token = eos_token
+        self.instruct_tokens = ['[INST]', '[/INST]']
+        self.func_tokens = ['[FUNC]', '[/FUNC]']
+        self.call_tokens = ['[FUNC_CALL]', '[/FUNC_CALL]']
+        self.result_tokens = ['[FUNC_RESULT]', '[/FUNC_RESULT]']
+
+    def _font(self, sys=None, add_bos_token=False):
+        if sys is None or not sys.strip():
+            sys = 'You are a helpful AI assistant built by MediaTek Research. The user you are helping speaks Traditional Chinese and comes from Taiwan.'
+        sys = sys.strip()
+        return f'{self.bos_token}{sys} ' if add_bos_token else f'{sys} '
+
+    def get_prompt(self, conversations, add_bos_token=False, check=True):
+        if check:
+            self.check_conversations(conversations)
 
         prompt = ''
         sys = None
@@ -235,7 +245,7 @@ class MRPromptV1:
         return conv
 
 
-class MRPromptV2(MRPromptV1):
+class MRPromptV2(MRPromptBase):
     def __init__(self, bos_token='<s>', eos_token='</s>',
                  instance_start_token='<|im_start|>', instance_end_token='<|im_end|>',
                  tool_call_token='<|use_tool|>', answer_token='<|answer|>',
@@ -270,24 +280,19 @@ class MRPromptV2(MRPromptV1):
         prompt = f'{self.instance_start_token}{self.tools_role}\n{functions}{self.instance_end_token}' + \
             f'{self.instance_start_token}{self.system_role}\n{sys}{self.instance_end_token}'
         return self.bos_token + prompt if add_bos_token else prompt
-    
-    def generate_call_id(self):
-        length = 24
-        pool = string.ascii_letters + string.digits
-        key = ''.join(random.choice(pool) for i in range(length))
-        return f'call_{key}'
 
-    def get_prompt(self, conversations, functions=None, add_bos_token=False):
+    def get_prompt(self, conversations, functions=None, add_bos_token=False, check=True):
         config = {
             'add_decision_token': True,
             'add_reason': False,
         }
         
-        if functions:
-            self.check_functions(functions)
-            self.check_conversations(conversations, functions=functions)
-        else:
-            self.check_conversations(conversations)
+        if check:
+            if functions:
+                self.check_functions(functions)
+                self.check_conversations(conversations, functions=functions)
+            else:
+                self.check_conversations(conversations)
 
         prompt = ''
         sys = None
@@ -384,6 +389,193 @@ class MRPromptV2(MRPromptV1):
                 conv = {
                     'role': 'assistant',
                     'content': ''
+                }
+        else:
+            conv = {
+                'role': 'assistant',
+                'content': generated_str
+            }
+        return conv
+
+
+class MRPromptV3(MRPromptBase):
+    '''prompt aligns to llama3.2'''
+
+    def __init__(self, bos_token='<|begin_of_text|>', eos_token='<|end_of_text|>',
+                 header_start_token='<|start_header_id|>', header_end_token='<|end_header_id|>',
+                 turn_end_token='<|eot_id|>', message_end_token='<|eom_id|>',
+                 tool_call_token='<|reserved_special_token_200|>', answer_token='<|reserved_special_token_201|>',
+                 sys_role_token='system', user_role_token='user', assistant_role_token='assistant', 
+                 tools_role_token='tools', tool_role_token='ipython',
+                 python_tag_token='<|python_tag|>',
+                ):
+        self.bos_token = bos_token
+        self.eos_token = eos_token
+        self.header_start_token = header_start_token
+        self.header_end_token = header_end_token
+        self.tool_call_token = tool_call_token
+        self.answer_token = answer_token
+        self.turn_end_token = turn_end_token
+        self.message_end_token = message_end_token
+        self.sys_role_token = sys_role_token
+        self.user_role_token = user_role_token
+        self.assistant_role_token = assistant_role_token
+        self.tools_role_token = tools_role_token
+        self.tool_role_token = tool_role_token
+        self.python_tag_token = python_tag_token
+
+    def _get_sys_segment(self, sys=None, functions=None, training=False):
+        if training:
+            sys_content = sys.strip() if sys is not None else 'You are a helpful AI assistant.'
+        else:
+            formatted_date = datetime.now().strftime("%d %b %Y")
+            sys_content = f'Cutting Knowledge Date: Oct 2024\nToday Date: {formatted_date}\n\n'
+            sys_content += (sys.strip() if sys is not None else 'You are a helpful AI assistant built by MediaTek Research. The user you are helping speaks Traditional Chinese and comes from Taiwan.')
+
+        segment = ''
+        if functions:
+            functions = repr(functions)
+            segment += f'{self.header_start_token}{self.tools_role_token}{self.header_end_token}\n\n{functions}{self.turn_end_token}'
+        segment += f'{self.header_start_token}{self.sys_role_token}{self.header_end_token}\n\n{sys_content}{self.turn_end_token}'
+        return segment
+
+    def _get_user_segment(self, user_content):
+        return f'{self.header_start_token}{self.user_role_token}{self.header_end_token}\n\n{user_content}{self.turn_end_token}'
+
+    def _get_assistant_prefix(self):
+        return f'{self.header_start_token}{self.assistant_role_token}{self.header_end_token}\n\n'
+
+    def _get_assistant_chat_completion(self, assistant_content, use_decision_token=False, is_end=False):
+        if is_end:
+            prefix = self.answer_token if use_decision_token else ''
+        else:
+            prefix = ''
+        return f'{prefix}{assistant_content}{self.turn_end_token}'
+    
+    def _get_assistant_call_completion(self, tool_calls, use_decision_token=False, is_end=False):
+        call_instances = []
+        for c in tool_calls:
+            name = c["function"]["name"]
+            argument_str = ', '.join(
+                [f'{k}={repr(v)}' for k, v in json.loads(c["function"]["arguments"]).items()]
+            )
+            call_instances.append(f'{name}({argument_str})')
+        tool_calls_str = '[' + ','.join(call_instances) + ']'
+
+        if is_end:
+            prefix = self.tool_call_token if use_decision_token else ''
+            end = self.turn_end_token
+        else:
+            prefix = self.python_tag_token
+            end = self.message_end_token
+
+        return f'{prefix}{tool_calls_str}{end}'
+    
+    def _get_tool_response_segment(self, responses):
+        return f'{self.header_start_token}{self.tool_role_token}{self.header_end_token}\n\n{repr(responses)}{self.turn_end_token}'
+
+    def get_prompt(self, conversations, functions=None, add_bos_token=False, training=False, check=True):
+        if check:
+            if functions:
+                self.check_functions(functions)
+                self.check_conversations(conversations, functions=functions)
+            else:
+                self.check_conversations(conversations)
+                
+        config = {
+            'add_decision_token': True,
+        }
+        if functions is None:
+            config['add_decision_token'] = False
+
+        prompt = self.bos_token if add_bos_token else ''
+
+        sys = None
+        if conversations[0]['role'] == 'system':
+            sys = conversations[0]['content']
+            conversations = conversations[1:]
+
+        prompt += self._get_sys_segment(sys=sys, functions=functions, training=training)
+
+        tmp_call_ids = []
+        tmp_response_map = {}
+
+        for i, conv in enumerate(conversations):
+            is_end = i + 1 >= len(conversations)
+
+            if conv['role'] == 'user':
+                prompt += self._get_user_segment(conv["content"].strip())
+                prompt += self._get_assistant_prefix()
+
+            elif conv['role'] == 'assistant' and 'tool_calls' not in conv:
+                prompt += self._get_assistant_chat_completion(conv['content'].strip(), 
+                                                              use_decision_token=config['add_decision_token'],
+                                                              is_end=is_end)
+
+            elif conv['role'] == 'assistant' and 'tool_calls' in conv:
+                prompt += self._get_assistant_call_completion(conv['tool_calls'],
+                                                              use_decision_token=config['add_decision_token'],
+                                                              is_end=is_end)
+                for c in conv['tool_calls']:
+                    if 'id' in c:
+                        tmp_call_ids.append(c['id'])
+                        tmp_response_map[c['id']] = None
+
+            elif conv['role'] == 'tool':
+                assert conv['tool_call_id'] in tmp_call_ids
+                tmp_response_map[conv['tool_call_id']] = json.loads(conv['content'])
+
+                if i + 1 == len(conversations) or conversations[i + 1]['role'] != 'tool':
+                    responses = [tmp_response_map[call_id] for call_id in tmp_call_ids]
+                    prompt += self._get_tool_response_segment(responses)
+
+                    tmp_call_ids = []
+                    tmp_response_map = {}
+
+                    prompt += self._get_assistant_prefix()
+
+        return prompt
+
+    def parse_generated_str(self, generated_str):
+        generated_str = generated_str.strip()
+        generated_str = _removeprefix(generated_str, self.answer_token).strip()
+        generated_str = _removesuffix(generated_str, self.turn_end_token).strip()
+
+        if self.tool_call_token in generated_str: # function call
+            generated_str = _removeprefix(generated_str, self.tool_call_token).strip()
+            try:
+                tree = ast.parse(generated_str, mode='eval')
+                
+                # Ensure the root node is a list
+                if not isinstance(tree.body, ast.List):
+                    raise ValueError("Input string must be a list of function calls")
+                
+                function_calls = [
+                    {
+                        'name': node.func.id,
+                        'arguments': json.dumps({
+                            keyword.arg: ast.literal_eval(keyword.value)
+                            for keyword in node.keywords
+                        }, ensure_ascii=False)
+                    } 
+                    for node in tree.body.elts
+                ]
+
+                conv = {
+                    'role': 'assistant',
+                    'tool_calls': [
+                        {
+                            'id': self.generate_call_id(),
+                            'type': 'function',
+                            'function': func_call
+                        }
+                        for func_call in function_calls
+                    ]
+                }
+            except Exception as e:
+                conv = {
+                    'role': 'assistant',
+                    'content': generated_str
                 }
         else:
             conv = {
