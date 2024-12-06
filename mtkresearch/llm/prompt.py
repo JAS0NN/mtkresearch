@@ -78,7 +78,7 @@ class MRPromptBase:
                     raise ValueError
 
             elif role == 'user':
-                if not isinstance(conv['content'], str):
+                if not (isinstance(conv['content'], str) or isinstance(conv['content'], list)):
                     raise ValueError
                 if i != 0:
                     if conversations[i - 1]['role'] == 'user':
@@ -404,9 +404,13 @@ class MRPromptV3(MRPromptBase):
     def __init__(self, bos_token='<|begin_of_text|>', eos_token='<|end_of_text|>',
                  header_start_token='<|start_header_id|>', header_end_token='<|end_header_id|>',
                  turn_end_token='<|eot_id|>', message_end_token='<|eom_id|>',
-                 tool_call_token='<|reserved_special_token_200|>', answer_token='<|reserved_special_token_201|>',
+                 tool_call_token='<|use_tool|>', answer_token='<|answer|>',
                  sys_role_token='system', user_role_token='user', assistant_role_token='assistant', 
                  tool_role_token='ipython', python_tag_token='<|python_tag|>',
+                 image_start_token='<|start_img|>', image_end_token='<|end_img|>',
+                 image_content_token='<|img|>',
+                 bbox_start_token='<|start_bbox|>', bbox_end_token='<|end_bbox|>',
+                 category_start_token='<|start_categ|>', category_end_token='<|end_categ|>',
                 ):
         self.bos_token = bos_token
         self.eos_token = eos_token
@@ -421,6 +425,13 @@ class MRPromptV3(MRPromptBase):
         self.assistant_role_token = assistant_role_token
         self.tool_role_token = tool_role_token
         self.python_tag_token = python_tag_token
+        self.image_start_token = image_start_token
+        self.image_end_token = image_end_token
+        self.image_content_token = image_content_token
+        self.bbox_start_token = bbox_start_token
+        self.bbox_end_token = bbox_end_token
+        self.category_start_token = category_start_token
+        self.category_end_token = category_end_token
 
     def _get_sys_segment(self, sys=None, functions=None, training=False):
         if training:
@@ -437,8 +448,81 @@ class MRPromptV3(MRPromptBase):
 
         return f'{self.header_start_token}{self.sys_role_token}{self.header_end_token}\n\n{functions_str}{sys_content}{self.turn_end_token}'
 
+    def _find_closest_aspect_ratio(self, aspect_ratio, target_ratios, width, height, image_size):
+        best_ratio_diff = float('inf')
+        best_ratio = (1, 1)
+        area = width * height
+        for ratio in target_ratios:
+            target_aspect_ratio = ratio[0] / ratio[1]
+            ratio_diff = abs(aspect_ratio - target_aspect_ratio)
+            if ratio_diff < best_ratio_diff:
+                best_ratio_diff = ratio_diff
+                best_ratio = ratio
+            elif ratio_diff == best_ratio_diff:
+                if area > 0.5 * image_size * image_size * ratio[0] * ratio[1]:
+                    best_ratio = ratio
+        return best_ratio
+    
+    def _total_image_token(self, orig_size,
+                          min_num=1,
+                          max_num=12,
+                          image_size=448,
+                          use_thumbnail=True):
+        orig_width, orig_height = orig_size
+
+        aspect_ratio = orig_width / orig_height
+
+        # calculate the existing image aspect ratio
+        target_ratios = {(i, j)
+                        for n in range(min_num, max_num + 1)
+                        for i in range(1, n + 1) for j in range(1, n + 1)
+                        if max_num >= i * j >= min_num}
+        target_ratios = sorted(target_ratios, key=lambda x: x[0] * x[1])
+
+        # find the closest aspect ratio to the target
+        target_aspect_ratio = self._find_closest_aspect_ratio(aspect_ratio,
+                                                        target_ratios, orig_width,
+                                                        orig_height, image_size)
+        blocks = target_aspect_ratio[0] * target_aspect_ratio[1]
+
+        if use_thumbnail:
+            blocks += 1
+
+        return blocks
+
+    def _get_image_content_token_num(self, width, height, token_per_patch=256):
+        return int(self._total_image_token((width, height)) * token_per_patch)
+    
+    def _normalize_bbox(self, box, width, height, max_size=1000):
+        x1, y1, x2, y2 = box
+        normalized_box = [
+            round((x1 / width) * max_size),
+            round((y1 / height) * max_size),
+            round((x2 / width) * max_size),
+            round((y2 / height) * max_size),
+        ]
+        return normalized_box
+
     def _get_user_segment(self, user_content):
-        return f'{self.header_start_token}{self.user_role_token}{self.header_end_token}\n\n{user_content}{self.turn_end_token}'
+        if isinstance(user_content, list):
+            content = ''
+            for x in user_content:
+                if x['type'] == 'text':
+                    content += x['text']
+                elif x['type'] == 'image':
+                    image_content_token_num = self._get_image_content_token_num(x['width'], x['height'])
+                    image_content_str = ''.join([self.image_content_token] * image_content_token_num)
+                    content += f'{self.image_start_token}{image_content_str}{self.image_end_token}'
+                elif x['type'] == 'category':
+                    content += f'{self.category_start_token}{x["text"]}{self.category_end_token}'
+                elif x['type'] == 'bbox':
+                    bboxes = [self._normalize_bbox(box, x["width"], x["height"]) for box in x["coords"]]
+                    content += f'{self.bbox_start_token}{repr(bboxes)}{self.bbox_end_token}'
+                else:
+                    raise ValueError('unknown type in the user content')
+        else:
+            content = user_content
+        return f'{self.header_start_token}{self.user_role_token}{self.header_end_token}\n\n{content}{self.turn_end_token}'
 
     def _get_assistant_prefix(self):
         return f'{self.header_start_token}{self.assistant_role_token}{self.header_end_token}\n\n'
@@ -502,7 +586,7 @@ class MRPromptV3(MRPromptBase):
             is_end = i + 1 >= len(conversations)
 
             if conv['role'] == 'user':
-                prompt += self._get_user_segment(conv["content"].strip())
+                prompt += self._get_user_segment(conv["content"])
                 prompt += self._get_assistant_prefix()
 
             elif conv['role'] == 'assistant' and 'tool_calls' not in conv:
