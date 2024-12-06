@@ -214,8 +214,9 @@ class MRPromptV1(MRPromptBase):
         sys = sys.strip()
         return f'{self.bos_token}{sys} ' if add_bos_token else f'{sys} '
 
-    def get_prompt(self, conversations, add_bos_token=False):
-        self.check_conversations(conversations)
+    def get_prompt(self, conversations, add_bos_token=False, check=True):
+        if check:
+            self.check_conversations(conversations)
 
         prompt = ''
         sys = None
@@ -280,17 +281,18 @@ class MRPromptV2(MRPromptBase):
             f'{self.instance_start_token}{self.system_role}\n{sys}{self.instance_end_token}'
         return self.bos_token + prompt if add_bos_token else prompt
 
-    def get_prompt(self, conversations, functions=None, add_bos_token=False):
+    def get_prompt(self, conversations, functions=None, add_bos_token=False, check=True):
         config = {
             'add_decision_token': True,
             'add_reason': False,
         }
         
-        if functions:
-            self.check_functions(functions)
-            self.check_conversations(conversations, functions=functions)
-        else:
-            self.check_conversations(conversations)
+        if check:
+            if functions:
+                self.check_functions(functions)
+                self.check_conversations(conversations, functions=functions)
+            else:
+                self.check_conversations(conversations)
 
         prompt = ''
         sys = None
@@ -472,18 +474,19 @@ class MRPromptV3(MRPromptBase):
     def _get_tool_response_segment(self, responses):
         return f'{self.header_start_token}{self.tool_role_token}{self.header_end_token}\n\n{repr(responses)}{self.turn_end_token}'
 
-    def get_prompt(self, conversations, functions=None, add_bos_token=False, training=False):
+    def get_prompt(self, conversations, functions=None, add_bos_token=False, training=False, check=True):
+        if check:
+            if functions:
+                self.check_functions(functions)
+                self.check_conversations(conversations, functions=functions)
+            else:
+                self.check_conversations(conversations)
+                
         config = {
             'add_decision_token': True,
         }
         if functions is None:
             config['add_decision_token'] = False
-
-        if functions:
-            self.check_functions(functions)
-            self.check_conversations(conversations, functions=functions)
-        else:
-            self.check_conversations(conversations)
 
         prompt = self.bos_token if add_bos_token else ''
 
