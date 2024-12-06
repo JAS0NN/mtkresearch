@@ -2,14 +2,14 @@ import setuptools
 
 setuptools.setup(
     name='mtkresearch',
-    version='0.1.0',
+    version='0.1.1',
     license='Apache License 2.0',
     author='',
     author_email='',
     description='mtkresearch',
     long_description=open('README.md').read(),
     long_description_content_type='text/markdown',
-    url='',
+    url='https://github.com/mtkresearch/mtkresearch',
     packages=setuptools.find_packages(),
     python_requires='>=3.6',
     include_package_data=True,
