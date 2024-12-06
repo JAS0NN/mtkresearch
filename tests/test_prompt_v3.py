@@ -116,10 +116,10 @@ class TestMRPromptV3:
             },
         ]
         result = self.prompt.get_prompt(conversations, self.functions, add_bos_token=True, training=True)
-        assert result == (
-            "<|begin_of_text|><|start_header_id|>tools<|end_header_id|>\n\n[{'name': 'get_current_weather', 'description': 'Get the current_weather', 'parameters': {'type': 'object', 'properties': {'location': {'type': 'string', "
-            "'description': 'The city and state, e.g. San Francisco, CA'}, 'unit': {'type': 'string', 'enum': ['celsius', 'fahrenheit']}}, 'required': ['location']}}]<|eot_id|>"
-            "<|start_header_id|>system<|end_header_id|>\n\nYou are a helpful assistant.<|eot_id|>"
+        assert result == (            
+            "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\nCustomized Functions: [{'name': 'get_current_weather', 'description': 'Get the current_weather', 'parameters': {'type': 'object', 'properties': {'location': {'type': 'string', "
+            "'description': 'The city and state, e.g. San Francisco, CA'}, 'unit': {'type': 'string', 'enum': ['celsius', 'fahrenheit']}}, 'required': ['location']}}]\n\n---\n"
+            "You are a helpful assistant.<|eot_id|>"
             "<|start_header_id|>user<|end_header_id|>\n\nQUERY1<|eot_id|>"
             "<|start_header_id|>assistant<|end_header_id|>\n\n<|reserved_special_token_200|>[get_current_weather(location='Boston, MA')]<|eot_id|>"
         )
@@ -155,9 +155,9 @@ class TestMRPromptV3:
         ]
         result = self.prompt.get_prompt(conversations, self.functions, add_bos_token=True, training=True)
         assert result == (
-            "<|begin_of_text|><|start_header_id|>tools<|end_header_id|>\n\n[{'name': 'get_current_weather', 'description': 'Get the current_weather', 'parameters': {'type': 'object', 'properties': {'location': {'type': 'string', "
-            "'description': 'The city and state, e.g. San Francisco, CA'}, 'unit': {'type': 'string', 'enum': ['celsius', 'fahrenheit']}}, 'required': ['location']}}]<|eot_id|>"
-            "<|start_header_id|>system<|end_header_id|>\n\nSYS<|eot_id|>"
+            "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\nCustomized Functions: [{'name': 'get_current_weather', 'description': 'Get the current_weather', 'parameters': {'type': 'object', 'properties': {'location': {'type': 'string', "
+            "'description': 'The city and state, e.g. San Francisco, CA'}, 'unit': {'type': 'string', 'enum': ['celsius', 'fahrenheit']}}, 'required': ['location']}}]\n\n---\n"
+            "SYS<|eot_id|>"
             "<|start_header_id|>user<|end_header_id|>\n\nQUERY1<|eot_id|>"
             "<|start_header_id|>assistant<|end_header_id|>\n\n<|python_tag|>[get_current_weather(location='Boston, MA')]<|eom_id|>"
             "<|start_header_id|>ipython<|end_header_id|>\n\n[{'temperature': '22 celsius'}]<|eot_id|>"
@@ -203,9 +203,9 @@ class TestMRPromptV3:
         ]
         result = self.prompt.get_prompt(conversations, self.functions, add_bos_token=True, training=True)
         assert result == (
-            "<|begin_of_text|><|start_header_id|>tools<|end_header_id|>\n\n[{'name': 'get_current_weather', 'description': 'Get the current_weather', 'parameters': {'type': 'object', 'properties': {'location': {'type': 'string', "
-            "'description': 'The city and state, e.g. San Francisco, CA'}, 'unit': {'type': 'string', 'enum': ['celsius', 'fahrenheit']}}, 'required': ['location']}}]<|eot_id|>"
-            "<|start_header_id|>system<|end_header_id|>\n\nSYS<|eot_id|>"
+            "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\nCustomized Functions: [{'name': 'get_current_weather', 'description': 'Get the current_weather', 'parameters': {'type': 'object', 'properties': {'location': {'type': 'string', "
+            "'description': 'The city and state, e.g. San Francisco, CA'}, 'unit': {'type': 'string', 'enum': ['celsius', 'fahrenheit']}}, 'required': ['location']}}]\n\n---\n"
+            "SYS<|eot_id|>"
             "<|start_header_id|>user<|end_header_id|>\n\nQUERY1<|eot_id|>"
             "<|start_header_id|>assistant<|end_header_id|>\n\n<|python_tag|>[get_current_weather(location='Boston, MA')]<|eom_id|>"
             "<|start_header_id|>ipython<|end_header_id|>\n\n[{'temperature': '22 celsius'}]<|eot_id|>"
@@ -247,9 +247,9 @@ class TestMRPromptV3:
         ]
         result = self.prompt.get_prompt(conversations, self.functions, add_bos_token=True, training=True)
         assert result == (
-            "<|begin_of_text|><|start_header_id|>tools<|end_header_id|>\n\n[{'name': 'get_current_weather', 'description': 'Get the current_weather', 'parameters': {'type': 'object', 'properties': {'location': {'type': 'string', "
-            "'description': 'The city and state, e.g. San Francisco, CA'}, 'unit': {'type': 'string', 'enum': ['celsius', 'fahrenheit']}}, 'required': ['location']}}]<|eot_id|>"
-            "<|start_header_id|>system<|end_header_id|>\n\nSYS<|eot_id|>"
+            "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\nCustomized Functions: [{'name': 'get_current_weather', 'description': 'Get the current_weather', 'parameters': {'type': 'object', 'properties': {'location': {'type': 'string', "
+            "'description': 'The city and state, e.g. San Francisco, CA'}, 'unit': {'type': 'string', 'enum': ['celsius', 'fahrenheit']}}, 'required': ['location']}}]\n\n---\n"
+            "SYS<|eot_id|>"
             "<|start_header_id|>user<|end_header_id|>\n\nQUERY1<|eot_id|>"
             "<|start_header_id|>assistant<|end_header_id|>\n\nRESP1<|eot_id|>"
             "<|start_header_id|>user<|end_header_id|>\n\nQUERY2<|eot_id|>"
@@ -283,9 +283,9 @@ class TestMRPromptV3:
         ]
         result = self.prompt.get_prompt(conversations, self.functions, add_bos_token=True, training=True)
         assert result == (
-            "<|begin_of_text|><|start_header_id|>tools<|end_header_id|>\n\n[{'name': 'get_current_weather', 'description': 'Get the current_weather', 'parameters': {'type': 'object', 'properties': {'location': {'type': 'string', "
-            "'description': 'The city and state, e.g. San Francisco, CA'}, 'unit': {'type': 'string', 'enum': ['celsius', 'fahrenheit']}}, 'required': ['location']}}]<|eot_id|>"
-            "<|start_header_id|>system<|end_header_id|>\n\nYou are a helpful AI assistant.<|eot_id|>"
+            "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\nCustomized Functions: [{'name': 'get_current_weather', 'description': 'Get the current_weather', 'parameters': {'type': 'object', 'properties': {'location': {'type': 'string', "
+            "'description': 'The city and state, e.g. San Francisco, CA'}, 'unit': {'type': 'string', 'enum': ['celsius', 'fahrenheit']}}, 'required': ['location']}}]\n\n---\n"
+            "You are a helpful AI assistant.<|eot_id|>"
             "<|start_header_id|>user<|end_header_id|>\n\nQUERY1<|eot_id|>"
             "<|start_header_id|>assistant<|end_header_id|>\n\n<|reserved_special_token_200|>[get_current_weather(location='Boston, MA'),get_current_weather(location='Taipei, Taiwan')]<|eot_id|>"
         )
@@ -331,9 +331,9 @@ class TestMRPromptV3:
         ]
         result = self.prompt.get_prompt(conversations, self.functions, add_bos_token=True, training=True)
         assert result == (
-            "<|begin_of_text|><|start_header_id|>tools<|end_header_id|>\n\n[{'name': 'get_current_weather', 'description': 'Get the current_weather', 'parameters': {'type': 'object', 'properties': {'location': {'type': 'string', "
-            "'description': 'The city and state, e.g. San Francisco, CA'}, 'unit': {'type': 'string', 'enum': ['celsius', 'fahrenheit']}}, 'required': ['location']}}]<|eot_id|>"
-            "<|start_header_id|>system<|end_header_id|>\n\nYou are a helpful AI assistant.<|eot_id|>"
+            "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\nCustomized Functions: [{'name': 'get_current_weather', 'description': 'Get the current_weather', 'parameters': {'type': 'object', 'properties': {'location': {'type': 'string', "
+            "'description': 'The city and state, e.g. San Francisco, CA'}, 'unit': {'type': 'string', 'enum': ['celsius', 'fahrenheit']}}, 'required': ['location']}}]\n\n---\n"
+            "You are a helpful AI assistant.<|eot_id|>"
             "<|start_header_id|>user<|end_header_id|>\n\nQUERY1<|eot_id|>"
             "<|start_header_id|>assistant<|end_header_id|>\n\n<|python_tag|>[get_current_weather(location='Boston, MA'),get_current_weather(location='Taipei, Taiwan')]<|eom_id|>"
             "<|start_header_id|>ipython<|end_header_id|>\n\n[{'temperature': '22 celsius'}, {'temperature': '31 celsius'}]<|eot_id|>"
@@ -379,9 +379,9 @@ class TestMRPromptV3:
         ]
         result = self.prompt.get_prompt(conversations, self.functions, add_bos_token=True, training=True)
         assert result == (
-            "<|begin_of_text|><|start_header_id|>tools<|end_header_id|>\n\n[{'name': 'get_current_weather', 'description': 'Get the current_weather', 'parameters': {'type': 'object', 'properties': {'location': {'type': 'string', "
-            "'description': 'The city and state, e.g. San Francisco, CA'}, 'unit': {'type': 'string', 'enum': ['celsius', 'fahrenheit']}}, 'required': ['location']}}]<|eot_id|>"
-            "<|start_header_id|>system<|end_header_id|>\n\n系統<|eot_id|>"
+            "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\nCustomized Functions: [{'name': 'get_current_weather', 'description': 'Get the current_weather', 'parameters': {'type': 'object', 'properties': {'location': {'type': 'string', "
+            "'description': 'The city and state, e.g. San Francisco, CA'}, 'unit': {'type': 'string', 'enum': ['celsius', 'fahrenheit']}}, 'required': ['location']}}]\n\n---\n"
+            "系統<|eot_id|>"
             "<|start_header_id|>user<|end_header_id|>\n\n問1<|eot_id|>"
             "<|start_header_id|>assistant<|end_header_id|>\n\n<|python_tag|>[get_current_weather(location='波士頓')]<|eom_id|>"
             "<|start_header_id|>ipython<|end_header_id|>\n\n[{'temperature': '22 度c'}]<|eot_id|>"

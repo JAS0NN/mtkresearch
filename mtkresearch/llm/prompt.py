@@ -406,8 +406,7 @@ class MRPromptV3(MRPromptBase):
                  turn_end_token='<|eot_id|>', message_end_token='<|eom_id|>',
                  tool_call_token='<|reserved_special_token_200|>', answer_token='<|reserved_special_token_201|>',
                  sys_role_token='system', user_role_token='user', assistant_role_token='assistant', 
-                 tools_role_token='tools', tool_role_token='ipython',
-                 python_tag_token='<|python_tag|>',
+                 tool_role_token='ipython', python_tag_token='<|python_tag|>',
                 ):
         self.bos_token = bos_token
         self.eos_token = eos_token
@@ -420,7 +419,6 @@ class MRPromptV3(MRPromptBase):
         self.sys_role_token = sys_role_token
         self.user_role_token = user_role_token
         self.assistant_role_token = assistant_role_token
-        self.tools_role_token = tools_role_token
         self.tool_role_token = tool_role_token
         self.python_tag_token = python_tag_token
 
@@ -432,12 +430,12 @@ class MRPromptV3(MRPromptBase):
             sys_content = f'Cutting Knowledge Date: Oct 2024\nToday Date: {formatted_date}\n\n'
             sys_content += (sys.strip() if sys is not None else 'You are a helpful AI assistant built by MediaTek Research. The user you are helping speaks Traditional Chinese and comes from Taiwan.')
 
-        segment = ''
+        functions_str = ''
         if functions:
             functions = repr(functions)
-            segment += f'{self.header_start_token}{self.tools_role_token}{self.header_end_token}\n\n{functions}{self.turn_end_token}'
-        segment += f'{self.header_start_token}{self.sys_role_token}{self.header_end_token}\n\n{sys_content}{self.turn_end_token}'
-        return segment
+            functions_str = f'Customized Functions: {functions}\n\n---\n'
+
+        return f'{self.header_start_token}{self.sys_role_token}{self.header_end_token}\n\n{functions_str}{sys_content}{self.turn_end_token}'
 
     def _get_user_segment(self, user_content):
         return f'{self.header_start_token}{self.user_role_token}{self.header_end_token}\n\n{user_content}{self.turn_end_token}'
