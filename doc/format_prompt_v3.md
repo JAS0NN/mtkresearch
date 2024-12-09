@@ -1,3 +1,18 @@
+## Special Tokens
+
+- Inherited from llama3.2:
+  - `<|begin_of_text|>`: Specifies the start of the prompt.
+  - `<|end_of_text|>`: Model will cease to generate more tokens. This token is generated only by the base models.
+  - `<|start_header_id|>` and `<|end_header_id|>`: These tokens enclose the role for a particular message. The possible roles are: [system, user, assistant, and ipython]
+  - `<|eom_id|>`: End of message. A message represents a possible stopping point for execution where the model can inform the executor that a tool call needs to be made. This is used for multi-step interactions between the model and any available tools. This token is emitted by the model when the Environment: ipython instruction is used in the system prompt, or if the model calls for a built-in tool.
+  - `<|eot_id|>`: End of turn. Represents when the model has determined that it has finished interacting with the user message that initiated its response. This token signals to the executor that the model has finished generating a response.
+  - `<|python_tag|>`: Special tag used in the model’s response to signify a tool call.
+- MediaTek Research proposed:
+  - `<|use_tool|>` and `<|answer|>`: decision tokens
+  - `<|start_img|>`, `<|img|>`, and `<|end_img|>`
+  - `<|start_bbox|>` and `<|end_bbox|>`
+
+
 ## Prompt format for base models
 
 
@@ -14,6 +29,22 @@ For base models, the prompt format for a simple completion is as follows
  gray or even purple. The color of the sky can change depending on the time of day, the weather, and the amount of pollution in the air. The color of the sky can also be affected by the presence of dust, smoke, and other particles in the air.
 
 ## Step 1: Identify the factors that
+```
+
+## Prompt format for base models with Image
+
+
+For base models, here is an example of how the text completion format looks with an image,
+
+
+##### Input Prompt Format
+```
+<|begin_of_text|><|start_img|><|img|><|img|><|img|><|img|><|img|><|end_img|>If I had to write a haiku for this one
+```
+
+##### Model Response Format
+```
+, it would be: A skateboarder's delight, a puppy on a board, a furry little thrill-seeker. This puppy is a true skateboarding enthusiast, always eager to hit the streets and show off his skills. He's a master of the board, gliding effortlessly across the pavement with grace and style.
 ```
 
 ## User and assistant conversation
@@ -66,7 +97,7 @@ What is the weather in SF and Seattle?<|eot_id|><|start_header_id|>assistant<|en
 ##### Model Response Format
 
 ```
-[get_weather(city='San Francisco', metric='celsius'), get_weather(city='Seattle', metric='celsius')]<|eot_id|>
+<|use_tool|>[get_weather(city='San Francisco', metric='celsius'), get_weather(city='Seattle', metric='celsius')]<|eot_id|>
 ```
 
 
@@ -114,3 +145,54 @@ The weather is 25 C in San Francisco and 21 C in Seattle.<|eot_id|>
 - The model finally summarizes the information from the tool response and returns the result to the user.
 
 
+## User and assistant conversation with Images
+
+This example shows how to pass and image to the model as part of the messages.
+
+##### Input Prompt Format
+```
+<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+You are a helpful assistant.<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+<|start_img|><|img|><|img|><|img|><|img|><|img|><|img|><|img|><|end_img|>Describe this image in two sentences<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+
+
+```
+
+##### Model Response Format
+```
+The image depicts a small dog standing on a skateboard, with its front paws firmly planted on the board and its back paws slightly raised. The dog's fur is predominantly brown and white, with a distinctive black stripe running down its back, and it is wearing a black collar around its neck.<|eot_id|>
+```
+
+
+##### Notes
+
+- The `<|img|>` tag is used to indicate presence of the image
+- The model is an early fusion model so actually translate an image into several tokens (multiply `<|img|>` tokens)
+- The <|img|> tag is part of the user message body, implying that it should only come after the header `<|start_header_id|>{role}<|end_header_id|>` in the message body
+- We recommend using a single image in one prompt
+
+## User and assistant conversation with Images and Bounding Boxes
+
+This example shows how to pass and image to the model as part of the messages.
+
+##### Input Prompt Format
+```
+<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+
+You are a helpful assistant.<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+<|start_img|><|img|><|img|><|img|><|img|><|img|><|img|><|img|><|end_img|>What kind of animal is shown in the region <|start_bbox|>[[0, 0, 500, 500]]<|end_bbox|> ? <|eot_id|><|start_header_id|>assistant<|end_header_id|>
+
+
+```
+
+##### Model Response Format
+```
+The animal is a dog.<|eot_id|>
+```
+
+##### Notes
+
+- The coordinates of bounding boxes are normalized between 0 and 1000.
