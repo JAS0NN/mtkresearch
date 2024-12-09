@@ -92,7 +92,7 @@ class MRPromptBase:
                 elif not(conversations[i - 1]['role'] == 'user' or conversations[i - 1]['role'] == 'tool'):
                     raise ValueError
 
-                if not isinstance(conv['content'], str):
+                if not (isinstance(conv['content'], str) or isinstance(conv['content'], list)):
                     raise ValueError
 
             elif role == 'assistant' and 'tool_calls' in conv: # assistant tool call
@@ -409,8 +409,7 @@ class MRPromptV3(MRPromptBase):
                  tool_role_token='ipython', python_tag_token='<|python_tag|>',
                  image_start_token='<|start_img|>', image_end_token='<|end_img|>',
                  image_content_token='<|img|>',
-                 bbox_start_token='<|start_bbox|>', bbox_end_token='<|end_bbox|>',
-                 category_start_token='<|start_categ|>', category_end_token='<|end_categ|>',
+                 bbox_start_token='<|start_bbox|>', bbox_end_token='<|end_bbox|>'
                 ):
         self.bos_token = bos_token
         self.eos_token = eos_token
@@ -430,8 +429,6 @@ class MRPromptV3(MRPromptBase):
         self.image_content_token = image_content_token
         self.bbox_start_token = bbox_start_token
         self.bbox_end_token = bbox_end_token
-        self.category_start_token = category_start_token
-        self.category_end_token = category_end_token
 
     def _get_sys_segment(self, sys=None, functions=None, training=False):
         if training:
@@ -502,32 +499,36 @@ class MRPromptV3(MRPromptBase):
             round((y2 / height) * max_size),
         ]
         return normalized_box
+    
+    def _get_content_from_list(self, content_list):
+        content = ''
+        for x in content_list:
+            if x['type'] == 'text':
+                content += x['text']
+            elif x['type'] == 'image':
+                image_content_token_num = self._get_image_content_token_num(x['width'], x['height'])
+                image_content_str = ''.join([self.image_content_token] * image_content_token_num)
+                content += f'{self.image_start_token}{image_content_str}{self.image_end_token}'
+            elif x['type'] == 'bbox':
+                bboxes = [self._normalize_bbox(box, x["width"], x["height"]) for box in x["coords"]]
+                content += f'{self.bbox_start_token}{repr(bboxes)}{self.bbox_end_token}'
+            else:
+                raise ValueError('unknown type in the content')
+        return content
 
     def _get_user_segment(self, user_content):
         if isinstance(user_content, list):
-            content = ''
-            for x in user_content:
-                if x['type'] == 'text':
-                    content += x['text']
-                elif x['type'] == 'image':
-                    image_content_token_num = self._get_image_content_token_num(x['width'], x['height'])
-                    image_content_str = ''.join([self.image_content_token] * image_content_token_num)
-                    content += f'{self.image_start_token}{image_content_str}{self.image_end_token}'
-                elif x['type'] == 'category':
-                    content += f'{self.category_start_token}{x["text"]}{self.category_end_token}'
-                elif x['type'] == 'bbox':
-                    bboxes = [self._normalize_bbox(box, x["width"], x["height"]) for box in x["coords"]]
-                    content += f'{self.bbox_start_token}{repr(bboxes)}{self.bbox_end_token}'
-                else:
-                    raise ValueError('unknown type in the user content')
-        else:
-            content = user_content
-        return f'{self.header_start_token}{self.user_role_token}{self.header_end_token}\n\n{content}{self.turn_end_token}'
+            user_content = self._get_content_from_list(user_content)
+
+        return f'{self.header_start_token}{self.user_role_token}{self.header_end_token}\n\n{user_content}{self.turn_end_token}'
 
     def _get_assistant_prefix(self):
         return f'{self.header_start_token}{self.assistant_role_token}{self.header_end_token}\n\n'
 
     def _get_assistant_chat_completion(self, assistant_content, use_decision_token=False, is_end=False):
+        if isinstance(assistant_content, list):
+            assistant_content = self._get_content_from_list(assistant_content)
+
         if is_end:
             prefix = self.answer_token if use_decision_token else ''
         else:
@@ -590,7 +591,7 @@ class MRPromptV3(MRPromptBase):
                 prompt += self._get_assistant_prefix()
 
             elif conv['role'] == 'assistant' and 'tool_calls' not in conv:
-                prompt += self._get_assistant_chat_completion(conv['content'].strip(), 
+                prompt += self._get_assistant_chat_completion(conv['content'], 
                                                               use_decision_token=config['add_decision_token'],
                                                               is_end=is_end)
 
