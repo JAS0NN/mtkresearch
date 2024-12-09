@@ -8,7 +8,7 @@ $ pip install mtkresearch
 
 # MRPromptV3
 
-`MRPromptV3` is a class designed to facilitate the creation and management of prompts for conversational AI systems. This class provides methods to generate prompts based on a series of conversations, including support for function calls and handling various types of user inputs such as text, images, and categories.
+`MRPromptV3` is a class designed to facilitate the creation and management of prompts for conversational AI systems. This class provides methods to generate prompts based on a series of conversations, including support for function calls and handling various types of user inputs such as text and image.
 
 ## Initialization
 To initialize an instance of `MRPromptV3`, simply import the class and create an instance:
@@ -91,4 +91,129 @@ print(parsed_result)
 #         }
 #     ]
 # }
+```
+
+## Structure of `conversations`
+
+### Basic Structure
+
+Each message in the conversations list has the following basic structure:
+
+```python
+{
+    "role": "system" | "user" | "assistant" | "tool",
+    "content": "string" | "list"
+}
+```
+
+`role`: Specifies the role of the speaker. It can be one of the following:
+* "system": Represents system messages, usually providing context or instructions.
+* "user": Represents messages from the user.
+* "assistant": Represents messages from the assistant.
+* "tool": Represents responses from tools or functions called by the assistant.
+
+`content`: The content of the message. It can be a string or a list of dictionaries, depending on the type of message.
+
+### System Message
+
+A system message provides context or instructions for the conversation.
+
+```python
+{
+    "role": "system",
+    "content": "YOUR SYSTEM MESSAGE"
+}
+```
+
+### User Message
+
+A user message contains the user's input.
+
+```python
+{
+    "role": "user",
+    "content": "YOUR PROBLEM"
+}
+```
+
+### User Message with Image
+
+A user message containing text, an image, and bounding box information.
+
+```python
+{
+    "role": "user",
+    "content": [
+        {
+            "type": "image",
+            "image_path": "/path/to/image.png",
+            "width": 1024,
+            "height": 768,
+        },
+        {
+            "type": "text",
+            "text": "In the above image, how many dogs in "
+        },
+        {
+            "type": "bbox",
+            "width": 1024,
+            "height": 768,
+            "coords": [[0, 0, 512, 384]]
+        },
+        {
+            "type": "text",
+            "text": " ?"
+        }
+    ]
+}
+```
+
+* `type`: Specifies the type of content. It can be "text", "image", or "bbox".
+* `text`: The text content (for "text" types).
+* `image_path`: The path to the image file (for "image" type).
+* `width and height`: The dimensions of the image.
+* `coords`: The coordinates of the bounding box (for "bbox" type).
+
+### Assistant Message
+
+An assistant message contains the assistant's response.
+
+```python
+{
+    "role": "assistant",
+    "content": "RESPONSE"
+}
+```
+
+### Tool Call
+
+A tool call message contains information about a function call made by the assistant.
+
+```python
+{
+    "role": "assistant",
+    "tool_calls": [
+        {
+            'id': 'call_8jLWqlXaY3OisD24IHJLwD3G',
+            'type': 'function',
+            'function': {
+                'arguments': "{\"location\": \"Boston, MA\"}",
+                'name': 'get_current_weather'
+            }
+        }
+    ]
+}
+```
+
+### Tool Response
+
+A tool response message contains the response from a tool or function.
+
+```python
+{
+    "role": "tool",
+    "tool_call_id": "call_8jLWqlXaY3OisD24IHJLwD3G",
+    "name": "get_current_weather",
+    "content": "{\"temperature\": \"22 celsius\"}"
+}
 ```
