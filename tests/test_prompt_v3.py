@@ -425,10 +425,6 @@ class TestMRPromptV3:
                         "height": 768,
                     },
                     {
-                        "type": "category",
-                        "text": "dog",
-                    },
-                    {
                         "type": "bbox",
                         "width": 1024,
                         "height": 768,
@@ -443,6 +439,39 @@ class TestMRPromptV3:
         assert result == (
             '<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\nSYS<|eot_id|>'
             f"<|start_header_id|>user<|end_header_id|>\n\nABC<|start_img|>{image_content_str}<|end_img|>"
-            "<|start_categ|>dog<|end_categ|><|start_bbox|>[[0, 0, 500, 500]]<|end_bbox|><|eot_id|>"
+            "<|start_bbox|>[[0, 0, 500, 500]]<|end_bbox|><|eot_id|>"
             '<|start_header_id|>assistant<|end_header_id|>\n\n'
+        )
+
+    def test_chat_with_image_case2(self): # sys + query + response_with_bbox
+        conversations = [
+            {
+                "role": "system",
+                "content": "SYS"
+            },
+            {
+                "role": "user",
+                "content": 'query'
+            },
+            {
+                "role": "assistant",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": "ABC"
+                    },
+                    {
+                        "type": "bbox",
+                        "width": 1024,
+                        "height": 768,
+                        "coords": [[0, 0, 512, 384]]
+                    }
+                ]
+            }
+        ]
+        result = self.prompt.get_prompt(conversations, add_bos_token=True, training=True)
+        assert result == (
+            '<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\nSYS<|eot_id|>'
+            f"<|start_header_id|>user<|end_header_id|>\n\nquery<|eot_id|>"
+            "<|start_header_id|>assistant<|end_header_id|>\n\nABC<|start_bbox|>[[0, 0, 500, 500]]<|end_bbox|><|eot_id|>"
         )
