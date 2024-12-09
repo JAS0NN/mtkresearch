@@ -97,22 +97,22 @@ print(parsed_result)
 
 ### Basic Structure
 
-Each message in the conversations list has the following basic structure:
+Each message in the `conversations` list has the following basic structure:
 
 ```python
 {
-    "role": "system" | "user" | "assistant" | "tool",
-    "content": "string" | "list"
+    "role": string ("system" | "user" | "assistant" | "tool"),
+    "content": string | list,
+    ...
 }
 ```
 
-`role`: Specifies the role of the speaker. It can be one of the following:
-* "system": Represents system messages, usually providing context or instructions.
-* "user": Represents messages from the user.
-* "assistant": Represents messages from the assistant.
-* "tool": Represents responses from tools or functions called by the assistant.
-
-`content`: The content of the message. It can be a string or a list of dictionaries, depending on the type of message.
+* `role`: Specifies the role of the speaker. It can be one of the following:
+    * "system": Represents system messages, usually providing context or instructions.
+    * "user": Represents messages from the user.
+    * "assistant": Represents messages from the assistant.
+    * "tool": Represents responses from tools or functions called by the assistant.
+* `content`: The content of the message. It can be a string or a list of dictionaries, depending on the type of message.
 
 ### System Message
 
@@ -215,5 +215,59 @@ A tool response message contains the response from a tool or function.
     "tool_call_id": "call_8jLWqlXaY3OisD24IHJLwD3G",
     "name": "get_current_weather",
     "content": "{\"temperature\": \"22 celsius\"}"
+}
+```
+
+## Structure of `functions`
+
+### Basic Structure
+
+Each function description in the `functions` list has the following basic structure:
+
+```python
+{
+    "name": str,
+    "description": str,
+    "parameters": dict,
+    "required": list
+}
+```
+
+* `name`: The name of the function, which should be short, clear, and descriptive of its core functionality. The format must be a string without spaces or special characters. For examples, "get_weather", "calculate_shipping", "translate_text".
+* `description`: A concise text explaining the purpose and function of the API. Use natural language. Be brief but complete, avoiding unnecessary technical jargon or ambiguity.
+* `parameters`: Defines the parameters and their structure required by the function, following the JSON Schema standard. Format as following:
+    * `type`: Must be `"object"`.
+    * `properties`: Defines the specific attributes of each parameter, including name, type, and description. Each parameter definition includes:
+        * `type`: The data type of the parameter (`"string"`, `"number"`, `"boolean"`, `"array"`, `"object"`).
+        * `description`: Explains the purpose of the parameter.
+        * Optional attributes such as `"enum"`, `"default"`, etc.
+* `required`: Lists the names of all required parameters (optional).
+
+For example:
+```json
+{
+  "name": "get_weather",
+  "description": "Fetches the current weather for a specific location.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "location": {
+        "type": "string",
+        "description": "The name of the city or geographic coordinates (latitude,longitude)."
+      },
+      "unit": {
+        "type": "string",
+        "description": "The unit of temperature measurement. Options are 'metric' (Celsius), 'imperial' (Fahrenheit), or 'standard' (Kelvin).",
+        "enum": ["metric", "imperial", "standard"],
+        "default": "metric"
+      },
+      "language": {
+        "type": "string",
+        "description": "The language code for the weather description (e.g., 'en' for English, 'fr' for French).",
+        "default": "en"
+      }
+    },
+    "required": ["location"]
+  }
 }
 ```
