@@ -619,6 +619,32 @@ class MRPromptV3(MRPromptBase):
 
         return prompt
 
+    def _replace_function_name(self, content):
+        def _parenthetic_contents(string, level=0):
+            """Generate parenthesized contents in string as pairs (level, contents)."""
+            stack = []
+            for i, c in enumerate(string):
+                if c == '(':
+                    stack.append(i)
+                elif c == ')' and stack:
+                    start = stack.pop()
+                    now_level = len(stack)
+                    if now_level == level:
+                        yield (start, i)
+
+        replaced_map = {}
+        i = 1
+        replaced_str = '['
+        for start, end in _parenthetic_contents(content):
+            replaced_name = 'F' + str(len(replaced_map))
+            name = content[i:start].lstrip()
+            common_delta = content[end:].index(',') + 1 if ',' in content[end:] else 0
+            i = end + common_delta
+            replaced_str += replaced_name + content[start:end + common_delta] 
+            replaced_map[replaced_name] = name
+        replaced_str += ')]'
+        return replaced_str, replaced_map
+
     def parse_generated_str(self, generated_str):
         generated_str = generated_str.strip()
         generated_str = _removeprefix(generated_str, self.answer_token).strip()
@@ -626,8 +652,13 @@ class MRPromptV3(MRPromptBase):
 
         if self.tool_call_token in generated_str: # function call
             generated_str = _removeprefix(generated_str, self.tool_call_token).strip()
+            
             try:
-                tree = ast.parse(generated_str, mode='eval')
+                if not generated_str.startswith('['):
+                    raise ValueError("Wrong format")
+                replaced_str, replace_map = self._replace_function_name(generated_str)
+
+                tree = ast.parse(replaced_str, mode='eval')
                 
                 # Ensure the root node is a list
                 if not isinstance(tree.body, ast.List):
@@ -635,7 +666,7 @@ class MRPromptV3(MRPromptBase):
                 
                 function_calls = [
                     {
-                        'name': node.func.id,
+                        'name': replace_map[node.func.id],
                         'arguments': json.dumps({
                             keyword.arg: ast.literal_eval(keyword.value)
                             for keyword in node.keywords

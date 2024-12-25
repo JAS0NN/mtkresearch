@@ -405,6 +405,25 @@ class TestMRPromptV3:
         assert conv['tool_calls'][1]['function']['name'] == 'get_current_weather'
         assert json.loads(conv['tool_calls'][1]['function']['arguments']) == {"location": "Taipei, Taiwan"}
 
+    def test_parse_generated_str_case2(self):
+        generated_str = "<|use_tool|>[get.ans(determine=True)]<|eot_id|>"
+        conv = self.prompt.parse_generated_str(generated_str)
+        
+        print(conv)
+        assert conv['role'] == 'assistant'
+        assert conv['tool_calls'][0]['type'] == 'function'
+        assert conv['tool_calls'][0]['function']['name'] == 'get.ans'
+        print(conv['tool_calls'][0]['function']['arguments'])
+        assert json.loads(conv['tool_calls'][0]['function']['arguments']) == {'determine': True}
+
+    def test_parse_generated_str_case3(self):
+        generated_str = "<|use_tool|>[get  ans(determine=True), get.ans(determine=True)]<|eot_id|>"
+        conv = self.prompt.parse_generated_str(generated_str)
+        
+        print(conv)
+        assert conv['tool_calls'][0]['function']['name'] == 'get  ans'
+        assert conv['tool_calls'][1]['function']['name'] == 'get.ans'
+
     def test_chat_with_image_case1(self): # sys + query_with_image
         conversations = [
             {
