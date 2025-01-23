@@ -4,6 +4,9 @@ import random
 import sys
 import ast
 from datetime import datetime
+from PIL import Image
+
+from mtkresearch.llm.image_process_v3 import load_image
 
 
 def _removeprefix(content, prefix):
@@ -502,11 +505,15 @@ class MRPromptV3(MRPromptBase):
     
     def _get_content_from_list(self, content_list):
         content = ''
+        pixel_values = None
         for x in content_list:
             if x['type'] == 'text':
                 content += x['text']
             elif x['type'] == 'image':
-                image_content_token_num = self._get_image_content_token_num(x['width'], x['height'])
+                image = Image.open(x['image_path']).convert('L')
+                pixel_values = load_image(image)
+                width, height = image.size
+                image_content_token_num = self._get_image_content_token_num(width, height)
                 image_content_str = ''.join([self.image_content_token] * image_content_token_num)
                 content += f'{self.image_start_token}{image_content_str}{self.image_end_token}'
             elif x['type'] == 'bbox':
@@ -514,20 +521,24 @@ class MRPromptV3(MRPromptBase):
                 content += f'{self.bbox_start_token}{repr(bboxes)}{self.bbox_end_token}'
             else:
                 raise ValueError('unknown type in the content')
-        return content
+        return content, pixel_values
 
     def _get_user_segment(self, user_content):
         if isinstance(user_content, list):
-            user_content = self._get_content_from_list(user_content)
+            user_content, pixel_values = self._get_content_from_list(user_content)
 
-        return f'{self.header_start_token}{self.user_role_token}{self.header_end_token}\n\n{user_content}{self.turn_end_token}'
+        return (
+            f'{self.header_start_token}{self.user_role_token}{self.header_end_token}\n\n{user_content}{self.turn_end_token}',
+            pixel_values
+        )
 
     def _get_assistant_prefix(self):
         return f'{self.header_start_token}{self.assistant_role_token}{self.header_end_token}\n\n'
 
     def _get_assistant_chat_completion(self, assistant_content, use_decision_token=False, is_end=False):
         if isinstance(assistant_content, list):
-            assistant_content = self._get_content_from_list(assistant_content)
+            assistant_content, pixel_values = self._get_content_from_list(assistant_content)
+            assert pixel_values is None
 
         if is_end:
             prefix = self.answer_token if use_decision_token else ''
@@ -582,12 +593,17 @@ class MRPromptV3(MRPromptBase):
 
         tmp_call_ids = []
         tmp_response_map = {}
+        pixel_values = None
 
         for i, conv in enumerate(conversations):
             is_end = i + 1 >= len(conversations)
 
             if conv['role'] == 'user':
-                prompt += self._get_user_segment(conv["content"])
+                user_segment, candidate_pixel_values = self._get_user_segment(conv["content"])
+                if candidate_pixel_values is not None:
+                    assert pixel_values is None, "only support single image in one conversation"
+                    pixel_values = candidate_pixel_values
+                prompt += user_segment
                 prompt += self._get_assistant_prefix()
 
             elif conv['role'] == 'assistant' and 'tool_calls' not in conv:
@@ -617,7 +633,10 @@ class MRPromptV3(MRPromptBase):
 
                     prompt += self._get_assistant_prefix()
 
-        return prompt
+        if pixel_values is None:
+            return prompt
+        else:
+            return (prompt, pixel_values)
 
     def _replace_function_name(self, content):
         def _parenthetic_contents(string, level=0):
