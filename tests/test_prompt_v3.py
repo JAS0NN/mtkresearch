@@ -439,9 +439,7 @@ class TestMRPromptV3:
                     },
                     {
                         "type": "image",
-                        "image_path": "/path/to/image.png",
-                        "width": 1024,
-                        "height": 768,
+                        "image_path": "./tests/test_img.png",
                     },
                     {
                         "type": "bbox",
@@ -452,12 +450,15 @@ class TestMRPromptV3:
                 ]
             }
         ]
-        result = self.prompt.get_prompt(conversations, add_bos_token=True, training=True)
-        image_content_token_num = 256 * 13
+        result, pixel_values = self.prompt.get_prompt(conversations, add_bos_token=True, training=True)
+        expected_patch_size = 1
+        assert pixel_values.size(0) == expected_patch_size
+    
+        image_content_token_num = 256 * (1 + expected_patch_size)
         image_content_str = ''.join(['<|img|>'] * image_content_token_num)
         assert result == (
             '<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\nSYS<|eot_id|>'
-            f"<|start_header_id|>user<|end_header_id|>\n\nABC<|start_img|>{image_content_str}<|end_img|>"
+            f"<|start_header_id|>user<|end_header_id|>\n\nABC<|start_img|>{image_content_str}<|end_img|>\n"
             "<|start_bbox|>[[0, 0, 500, 500]]<|end_bbox|><|eot_id|>"
             '<|start_header_id|>assistant<|end_header_id|>\n\n'
         )

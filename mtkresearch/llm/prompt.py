@@ -515,7 +515,7 @@ class MRPromptV3(MRPromptBase):
                 width, height = image.size
                 image_content_token_num = self._get_image_content_token_num(width, height)
                 image_content_str = ''.join([self.image_content_token] * image_content_token_num)
-                content += f'{self.image_start_token}{image_content_str}{self.image_end_token}'
+                content += f'{self.image_start_token}{image_content_str}{self.image_end_token}\n'
             elif x['type'] == 'bbox':
                 bboxes = [self._normalize_bbox(box, x["width"], x["height"]) for box in x["coords"]]
                 content += f'{self.bbox_start_token}{repr(bboxes)}{self.bbox_end_token}'
@@ -526,6 +526,8 @@ class MRPromptV3(MRPromptBase):
     def _get_user_segment(self, user_content):
         if isinstance(user_content, list):
             user_content, pixel_values = self._get_content_from_list(user_content)
+        else:
+            pixel_values = None
 
         return (
             f'{self.header_start_token}{self.user_role_token}{self.header_end_token}\n\n{user_content}{self.turn_end_token}',
