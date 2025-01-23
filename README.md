@@ -147,8 +147,6 @@ A user message containing text, an image, and bounding box information.
         {
             "type": "image",
             "image_path": "/path/to/image.png",
-            "width": 1024,
-            "height": 768,
         },
         {
             "type": "text",

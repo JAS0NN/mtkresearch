@@ -155,7 +155,7 @@ This example shows how to pass and image to the model as part of the messages.
 
 You are a helpful assistant.<|eot_id|><|start_header_id|>user<|end_header_id|>
 
-<|start_img|><|img|><|img|><|img|><|img|><|img|><|img|><|img|><|end_img|>Describe this image in two sentences<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+<|start_img|><|img|><|img|><|img|><|img|><|img|><|img|><|img|><|end_img|>\nDescribe this image in two sentences<|eot_id|><|start_header_id|>assistant<|end_header_id|>
 
 
 ```
