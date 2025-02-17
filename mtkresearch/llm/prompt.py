@@ -485,7 +485,7 @@ class MRPromptV3(MRPromptBase):
                                                         orig_height, image_size)
         blocks = target_aspect_ratio[0] * target_aspect_ratio[1]
 
-        if use_thumbnail:
+        if use_thumbnail and blocks != 1 :
             blocks += 1
 
         return blocks
